@@ -6,7 +6,7 @@ First we bring up a SFTP server and SFTP client as docker containers.
 Do docker network inspect to get the IPs allocated to the containers.
 Then try to connect to SFTP server from the SFTP client.
 
-Second we bring up K3S(or can be done via K3D) i.e. Kubernetes cluster inside docker.
+Second we bring up K3D i.e. Kubernetes cluster inside docker.
 And then bring up the SFTP client as a pod running inside K8s cluster.
 And we connect to the SFTP server running outside of the K8s cluster from the pod running inside the K8s cluster.
 
@@ -152,9 +152,147 @@ Accepted password for sftpuser from 172.17.0.3 port 33950 ssh2
 
 # SFTP Server Kubernetes Test
 
-1. Start K3S port forwarding
+1. Start K3D cluster
 
-2. Upload sftp-client to K3S Docker repo
+**Note**: Install K3D if required - https://github.com/rancher/k3d
+
+```
+>> k3d cluster create demo --servers 3 --agents 3
+
+INFO[0000] Created network 'k3d-demo'                   
+INFO[0000] Created volume 'k3d-demo-images'             
+INFO[0000] Creating initializing server node            
+INFO[0000] Creating node 'k3d-demo-server-0'            
+INFO[0009] Creating node 'k3d-demo-server-1'            
+INFO[0010] Creating node 'k3d-demo-server-2'            
+INFO[0011] Creating node 'k3d-demo-agent-0'             
+INFO[0011] Creating node 'k3d-demo-agent-1'             
+INFO[0012] Creating node 'k3d-demo-agent-2'             
+INFO[0013] Creating LoadBalancer 'k3d-demo-serverlb'    
+INFO[0016] Pulling image 'docker.io/rancher/k3d-proxy:v3.0.1' 
+INFO[0034] Cluster 'demo' created successfully!         
+INFO[0035] You can now use it like this:                
+kubectl cluster-info
+```
+
+```
+>> kubectl cluster-info
+
+Kubernetes master is running at https://0.0.0.0:61192
+CoreDNS is running at https://0.0.0.0:61192/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
+Metrics-server is running at https://0.0.0.0:61192/api/v1/namespaces/kube-system/services/https:metrics-server:/proxy
+
+To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+```
+
+```
+>> docker network ls
+
+NETWORK ID          NAME                DRIVER              SCOPE
+75ae611cf301        bridge              bridge              local
+0799c236080b        host                host                local
+4feacf8c60b1        k3d-demo            bridge              local
+1864c380536a        none                null                local
+```
+
+2. Connect sftp-server container to the k3d-demo network
+```
+>> docker network connect k3d-demo sftp-server
+```
+
+```
+>> [
+    {
+        "Name": "k3d-demo",
+        "Id": "4feacf8c60b1a5f23232dc4bcf42212ac11902fd6879fe504d6df475c770227a",
+        "Created": "2020-09-05T03:30:14.521736387Z",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.18.0.0/16",
+                    "Gateway": "172.18.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Containers": {
+            "00b59b50ebccc5a7a596cb745259cd4c97d670a44675e8b13e15d5e65a9bed32": {
+                "Name": "k3d-demo-agent-1",
+                "EndpointID": "c9d03dc906c9ecd07c8f04037270ad55cdb8d16af7a183437eabae61b49538d3",
+                "MacAddress": "02:42:ac:12:00:06",
+                "IPv4Address": "172.18.0.6/16",
+                "IPv6Address": ""
+            },
+            "0c82953cbd8e465f15a160444039916e0607559651ed5aa590d7eeb6b00f9908": {
+                "Name": "sftp-server",
+                "EndpointID": "79226855896bab06edea7b95763930cd183d591edc91dcc4817d828becc505e6",
+                "MacAddress": "02:42:ac:12:00:09",
+                "IPv4Address": "172.18.0.9/16",
+                "IPv6Address": ""
+            },
+            "1d8f5caefd0fba7ba8bf3ae7f0c7da50d32a291bd5873bdd9a150810a3017a1f": {
+                "Name": "k3d-demo-serverlb",
+                "EndpointID": "bb1d9567868f45e7ac7ac89ce221576e00f2c6064a064424b01c243c01ec92a4",
+                "MacAddress": "02:42:ac:12:00:08",
+                "IPv4Address": "172.18.0.8/16",
+                "IPv6Address": ""
+            },
+            "32896f9d592545e96a3004fe0d8a740d3652154f89f53cbce2d8a44045adbde5": {
+                "Name": "k3d-demo-server-1",
+                "EndpointID": "aa15869882ec5a7059291ee3058e44d1d49ad6e3a7ac2a4b4f906c8b3b8ba60d",
+                "MacAddress": "02:42:ac:12:00:03",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "6616a8657b2d4c0052ba2b142e5c7294526027f755f7dac1cca8d6bae4623733": {
+                "Name": "k3d-demo-server-2",
+                "EndpointID": "6010d59afbf4480ef2e23189bcf01493131758e2bb4b6c0a1926e28795d4e53f",
+                "MacAddress": "02:42:ac:12:00:04",
+                "IPv4Address": "172.18.0.4/16",
+                "IPv6Address": ""
+            },
+            "b31559e6bd95b887eca0cb2eed5a4445880b8a8958b79370923910ab9855af53": {
+                "Name": "k3d-demo-agent-2",
+                "EndpointID": "f68b73330f364bf02f3f702b233df9ed6020b0967d99fa6aeb498f5724c4701a",
+                "MacAddress": "02:42:ac:12:00:07",
+                "IPv4Address": "172.18.0.7/16",
+                "IPv6Address": ""
+            },
+            "bb66dd5d663af04956f3c52062a6ea715975dc1be4e1f995398fd41ab18d9750": {
+                "Name": "k3d-demo-agent-0",
+                "EndpointID": "b616c88f7f63a00b6be61c7a929efe4efb690c733cfdff0a598a05683714a200",
+                "MacAddress": "02:42:ac:12:00:05",
+                "IPv4Address": "172.18.0.5/16",
+                "IPv6Address": ""
+            },
+            "cf24bf63320fa8c3058b455e24791dc74a1d2ee7a62ff456caf49ddd2962d68f": {
+                "Name": "k3d-demo-server-0",
+                "EndpointID": "feadd823a54d9815cb4329cddb40093f0d7319b17d9e5e4f0c6bd493249ef81c",
+                "MacAddress": "02:42:ac:12:00:02",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {},
+        "Labels": {
+            "app": "k3d"
+        }
+    }
+]
+```
+
+2. Create sftp-client pod
 
 ```
 docker tag sftp-client:latest preetamdutta/sftp-client:latest
@@ -170,17 +308,19 @@ kubectl apply -f ./sftp-client/pod.yaml
 ```
 kubectl exec -it sftp-client bash
 kubectl exec [POD] [COMMAND] is DEPRECATED and will be removed in a future version. Use kubectl kubectl exec [POD] -- [COMMAND] instead.
-root@sftp-client:/# sftp -P 22 sftpuser@172.17.0.3
-The authenticity of host '172.17.0.3 (172.17.0.3)' can't be established.
+
+root@sftp-client:/# sftp -P 22 sftpuser@172.18.0.9
+The authenticity of host '172.18.0.9 (172.18.0.9)' can't be established.
 ED25519 key fingerprint is SHA256:JeCyNZS7AakU3VvyXKSF5y5vCoARa+2MsUlRqd1L/CQ.
 Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '172.17.0.3' (ED25519) to the list of known hosts.
-sftpuser@172.17.0.3's password: 
-Connected to 172.17.0.3.
-sftp> bye
-root@sftp-client:/# exit
-exit
+Warning: Permanently added '172.18.0.9' (ED25519) to the list of known hosts.
+sftpuser@172.18.0.9's password: 
+Connected to 172.18.0.9.
+sftp> ls 
+upload  
+sftp> 
 ```
 
 # References
 - https://hub.docker.com/r/atmoz/sftp/
+- https://github.com/rancher/k3d
